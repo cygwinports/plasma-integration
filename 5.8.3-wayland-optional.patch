@@ -1,0 +1,92 @@
+--- origsrc/plasma-integration-5.8.3/CMakeLists.txt	2016-11-01 07:20:21.000000000 -0500
++++ src/plasma-integration-5.8.3/CMakeLists.txt	2016-11-28 10:40:15.933227700 -0600
+@@ -36,7 +36,7 @@ find_package(KF5KIO ${KF5_DEP_VERSION} R
+ find_package(KF5Notifications ${KF5_DEP_VERSION} REQUIRED)
+ find_package(KF5WidgetsAddons ${KF5_DEP_VERSION} REQUIRED)
+ find_package(KF5WindowSystem ${KF5_DEP_VERSION} REQUIRED)
+-find_package(KF5Wayland 5.5 CONFIG REQUIRED)
++find_package(KF5Wayland 5.5 CONFIG)
+ 
+ find_package(Breeze ${PROJECT_VERSION} CONFIG)
+ set_package_properties(Breeze PROPERTIES
+--- origsrc/plasma-integration-5.8.3/autotests/CMakeLists.txt	2016-11-01 07:20:11.000000000 -0500
++++ src/plasma-integration-5.8.3/autotests/CMakeLists.txt	2016-11-28 11:25:14.160916400 -0600
+@@ -27,7 +27,10 @@ macro(FRAMEWORKINTEGRATION_TESTS _testna
+     add_test(frameworkintegration-${_testname} ${_testname})
+     ecm_mark_as_test(${_testname})
+     ecm_mark_nongui_executable(${_testname})
+-    target_link_libraries(${_testname} Qt5::Test Qt5::DBus Qt5::X11Extras KF5::ConfigWidgets KF5::ConfigCore KF5::IconThemes KF5::KIOFileWidgets KF5::I18n KF5::Notifications KF5::WindowSystem KF5::WaylandClient)
++    target_link_libraries(${_testname} Qt5::Test Qt5::DBus Qt5::X11Extras KF5::ConfigWidgets KF5::ConfigCore KF5::IconThemes KF5::KIOFileWidgets KF5::I18n KF5::Notifications KF5::WindowSystem)
++    if(KF5Wayland_FOUND)
++        target_link_libraries(${_testname} KF5::WaylandClient)
++    endif()
+ endmacro()
+ 
+ set(platformThemeSRCS
+@@ -39,10 +42,16 @@ set(platformThemeSRCS
+   ../src/platformtheme/kdeplatformsystemtrayicon.cpp
+   ../src/platformtheme/kdirselectdialog.cpp
+   ../src/platformtheme/kfiletreeview.cpp
+-  ../src/platformtheme/kwaylandintegration.cpp
+   ../src/platformtheme/x11integration.cpp
+ )
+ 
++if (KF5Wayland_FOUND)
++set(platformThemeSRCS
++  ${platformThemeSRCS}
++  ../src/platformtheme/kwaylandintegration.cpp
++)
++endif()
++
+ frameworkintegration_tests(
+   kdeplatformtheme_unittest
+   ${platformThemeSRCS}
+--- origsrc/plasma-integration-5.8.3/src/platformtheme/CMakeLists.txt	2016-11-01 07:20:11.000000000 -0500
++++ src/plasma-integration-5.8.3/src/platformtheme/CMakeLists.txt	2016-11-28 10:44:26.845643000 -0600
+@@ -19,11 +19,14 @@ set(platformtheme_SRCS
+     kdeplatformsystemtrayicon.cpp
+     kfiletreeview.cpp
+     kdirselectdialog.cpp
+-    kwaylandintegration.cpp
+     x11integration.cpp
+     main.cpp
+ )
+ 
++if(KF5Wayland_FOUND)
++  set(platformtheme_SRCS ${platformtheme_SRCS} kwaylandintegration.cpp)
++endif()
++
+ include_directories(
+     ${Qt5Gui_PRIVATE_INCLUDE_DIRS}
+ )
+@@ -42,9 +45,12 @@ target_link_libraries(KDEPlasmaPlatformT
+         KF5::I18n
+         KF5::Notifications
+         KF5::WindowSystem
+-        KF5::WaylandClient
+ )
+ 
++if(KF5Wayland_FOUND)
++  target_link_libraries(KDEPlasmaPlatformTheme PRIVATE KF5::WaylandClient)
++endif()
++
+ if(HAVE_X11)
+   target_link_libraries(KDEPlasmaPlatformTheme PRIVATE Qt5::X11Extras ${X11_Xcursor_LIB})
+ endif()
+--- origsrc/plasma-integration-5.8.3/src/platformtheme/kdeplatformtheme.cpp	2016-11-01 07:20:11.000000000 -0500
++++ src/plasma-integration-5.8.3/src/platformtheme/kdeplatformtheme.cpp	2016-11-28 11:23:13.742558800 -0600
+@@ -47,10 +47,13 @@
+ KdePlatformTheme::KdePlatformTheme()
+ {
+     loadSettings();
++#if 0
+     if (QGuiApplication::platformName().startsWith(QLatin1String("wayland"))) {
+         m_kwaylandIntegration.reset(new KWaylandIntegration());
+         m_kwaylandIntegration->init();
+-    } else if (QX11Info::isPlatformX11()) {
++    } else
++#endif
++    if (QX11Info::isPlatformX11()) {
+         m_x11Integration.reset(new X11Integration());
+         m_x11Integration->init();
+     }
